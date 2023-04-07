@@ -1,4 +1,5 @@
 {
-    "jupyter.jupyterServerType": "local"
+    "jupyter.jupyterServerType": "local",
+    "python.analysis.typeCheckingMode": "off"
     
 }
