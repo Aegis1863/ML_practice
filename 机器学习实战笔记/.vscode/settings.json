@@ -1,5 +1,6 @@
 {
     "jupyter.jupyterServerType": "local",
-    "python.analysis.typeCheckingMode": "off"
+    "python.analysis.typeCheckingMode": "off",
+    "wolf.disableHotModeWarning": true
     
 }
