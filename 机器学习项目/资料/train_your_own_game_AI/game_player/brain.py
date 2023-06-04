@@ -88,12 +88,16 @@ class DoubleDQN:
 
         # -------------------- 以下务必自己修改 --------------------
         # 第 1 层 卷积层和最大池化层
-        conv_1 = tf.keras.layers.Conv2D(filters=1, kernel_size=(3, 3), padding='same', activation=tf.nn.relu)(Input)
-        pool_1 = tf.keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2), padding='same')(conv_1)
+        conv_1 = tf.keras.layers.Conv2D(filters=1, kernel_size=(3, 3), 
+                                        padding='same', activation=tf.nn.relu)(Input)
+        pool_1 = tf.keras.layers.MaxPool2D(pool_size=(2, 2), 
+                                           strides=(2, 2), padding='same')(conv_1)
         
         # 第 2 层 卷积层和最大池化层
-        conv_2 = tf.keras.layers.Conv2D(filters=1, kernel_size=(3, 3), padding='same', activation=tf.nn.relu)(pool_1)
-        pool_2 = tf.keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2), padding='same')(conv_2)
+        conv_2 = tf.keras.layers.Conv2D(filters=1, kernel_size=(3, 3), 
+                                        padding='same', activation=tf.nn.relu)(pool_1)
+        pool_2 = tf.keras.layers.MaxPool2D(pool_size=(2, 2), 
+                                           strides=(2, 2), padding='same')(conv_2)
 
         # 你要是觉得不够，可以自己增加卷积层和池化层，觉得太多了就删掉
         
@@ -190,8 +194,8 @@ class DoubleDQN:
             # 数据预处理
             observations = observations.reshape(-1, self.in_height, self.in_width, self.in_channels)
             actions = actions.astype(np.int8)
-            next_observations = next_observations.reshape(-1, self.in_height, self.in_width, self.in_channels)
-
+            next_observations = next_observations.reshape(-1, self.in_height, 
+                                                          self.in_width, self.in_channels)
 
             next_eval_qs = self.evaluate_net.predict(next_observations)
             next_actions = next_eval_qs.argmax(axis=-1)
