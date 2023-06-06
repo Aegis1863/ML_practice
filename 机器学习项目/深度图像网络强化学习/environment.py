@@ -72,7 +72,7 @@ def get_data(self, code, start, long):
 class stock:
     def __init__(self):
         
-        print('v-1.8')
+        print('v-1.9')
         print('get_data(code, start, long) 在线下载数据')
         print('reset() 返回一个初始k线图')
         print('step(action) 采取动作action')
@@ -165,7 +165,7 @@ class stock:
         
         self.reward_list.append(self.total_reward) # 记录历史总奖励
         
-        if self.total_reward < -30 or self.order - self.start_place >= 200: #### 分数小于-30或者次数大于200结束
+        if self.total_reward < -30 or self.order - self.start_place >= 100: #### 分数小于-30或者次数大于100结束
             done = 1
         else:
             done = 0
