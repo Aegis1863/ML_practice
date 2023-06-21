@@ -1,26 +1,12 @@
-'''
-get_data(code, start, long), ??????, ???? ('sh.600000', '2017-12-31', '100')
-
-make_img(), ??k??, ??????????, ??reset()??????
-
-reset()), ???????, ??obs(, info), ?????k???????(???????)
-
-step(action), ??????, ?? next_state, reward, done
-'''
-
-
 import baostock as bs
 import pandas as pd
 from datetime import datetime, timedelta
 from matplotlib.pylab import date2num
-import matplotlib.pyplot as plt
 import mplfinance as mpf
 import numpy as np
 
+
 def fig2data(fig):
-    '''
-    ????, ??ndarray??
-    '''
     import PIL.Image as Image
     # draw the renderer
     fig.canvas.draw()
@@ -37,13 +23,11 @@ def fig2data(fig):
 
 def get_data(self, code, start, long):
     '''
-    ?????, ????????????
-    
     code: 'sh.600000'
     
     start: '2017-12-31'
     
-    long: ??
+    long: 持续时间
     '''
     year, month, day = map(int, start.split('-'))
     date = datetime(year, month, day)
@@ -56,45 +40,36 @@ def get_data(self, code, start, long):
             start_date=start, end_date=end, frequency="d", adjustflag="2")
         print('query_history_k_data_plus respond  error_msg:'+rs.error_msg)
 
-        #### ????? ####
         data_list = []
         while (rs.error_code == '0') & rs.next():
-            # ??????,????????
             data_list.append(rs.get_row_data())
         data = pd.DataFrame(data_list, columns=rs.fields)
         data.to_csv("k_data.csv", index=False)
-        print('?????????? k_data.csv ??')
-        #### ???? ####
+        print('已保存为k_data.csv')
         bs.logout()
     except:
-        print('???????????')
+        print('数据获取失败')
 
 class stock:
     def __init__(self):
-        
-        print('v-1.9')
-        print('get_data(code, start, long) ??????')
-        print('reset() ??????k??')
-        print('step(action) ????action')
+        print('========================')
+        print('v-2.0. 去掉了历史记录')
+        print('========================')
 
         self.my_color = mpf.make_marketcolors(
-            up="red",  # ??K????
-            down="green",  # ??K????
-            edge="black",  # ????????
-            wick="black"  # ????????
+            up="red",
+            down="green",
+            edge="black",
+            wick="black"
         )
-
-        # ?????
         self.my_style = mpf.make_mpf_style(
             marketcolors=self.my_color,
         )
 
     def make_img(self, df, figure_show=0):
         '''
-        df: ??, ??????, open, high, low, close, (volumn)
-        figure_show: ??????, ??0, ????
+        df: 数据, open, high, low, close, (volumn)
         '''
-
         fig, ax = mpf.plot(df.iloc[self.order - self.k_num:self.order], type='candle', style=self.my_style, 
                            returnfig=True, closefig=True, axisoff=True)
         self.order += 1
@@ -105,31 +80,27 @@ class stock:
         
     def reset(self, offline=1, k_num=40, info_return=0, figure_show=0):
         '''
-        flag: ??????1, ???????0
+        offline: 默认用离线数据
         
-        k_num: ????, ???????k?
+        k_num: k线数量
         
-        episods: ?????
+        info_return: 返回信息，默认不返回
         
-        info_return: ????, ?????
-        
-        figure_show: ?????????, ??0, ????
+        figure_show: 1显示，默认不显示
         '''
         
-        if offline == 1: # ?????
+        if offline == 1: # 离线数据
             self.data = pd.read_csv('k_data.csv')
         else:
-            code= input('????: ? sh.600000')
-            start = input('????: ? 2020-12-01')
-            long = int(input('????: ? 100'))
+            code= input('输入股票代码 如: sh.600000')
+            start = input('输入开始时间, 如: 2020-12-01')
+            long = int(input('输入持续时间, 如: 100'))
             self.data = get_data(str(code), str(start), long)
             
-        self.reward_list = [] # ????
-        self.total_reward = 0 # ???
-        self.amount = 0 # ???
-        self.amount_history = [] # ????
-        self.order = np.random.randint(k_num, int(self.data.shape[0] * 0.9)) #### ????, ?????
-        self.k_num = k_num # ????? (??k?)
+        self.total_reward = 0 # 初始化总奖励
+        self.amount = 0 # 持仓状态
+        self.order = np.random.randint(k_num, int(self.data.shape[0] * 0.9)) #### 随机取开始时间
+        self.k_num = k_num # 给模型看的k线数量
         self.start_place = self.order
         
         self.data.index = pd.DatetimeIndex(self.data['date'])
@@ -143,33 +114,44 @@ class stock:
     
     def step(self, action):
         '''
-        0:??1, 1:???10, 2:??0, 3:??1, 4:???-10
+        0:买入1; 1: 满仓10; 2:不变0; 3:卖出1; 4:卖空-10
         
         return next_state, reward, done
         '''
-        if self.amount < 10 and action == 0: # ???
+        
+        if self.amount < 10 and action == 0: # 买入1
             self.amount += 1
-        elif action == 1: # ??
+        elif action == 1:
             self.amount = 10
-        elif self.amount > -10 and action == 3: # ????10?
+        elif self.amount > -10 and action == 3:
             self.amount -= 1
-        elif action == 4: # ???
+        elif action == 4:
             self.amount = -10
         elif action == 2:
             pass
         
-        self.amount_history.append(self.amount) # ????
-        
         reward = ((self.data['close'][self.order] - self.data['close'][self.order-1]) \
-                  / self.data['close'][self.order-1]) * self.amount * 10 # ?????????*10
+                  / self.data['close'][self.order-1]) * self.amount * 10 # 计算盈亏，持仓乘以涨跌率乘以10
         
-        self.reward_list.append(self.total_reward) # ???????
-        
-        if self.total_reward < -20 or self.order - self.start_place >= 100: #### ????-20??????100??
+        if self.total_reward < -20 or self.order - self.start_place >= 60: #### 亏损-20或者盈利达到60结束
             done = 1
         else:
             done = 0
-            
-        return self.make_img(self.data, figure_show=0), reward, done
         
+        return self.make_img(self.data, figure_show=0), reward, done
 
+'''
+import psutil
+import matplotlib.pyplot as plt
+i = 0
+his = []
+env = stock()
+while i < 2000:
+    i += 1
+    env.reset()
+    if i % 2 == 0: # 偶数卖出
+        env.step(0)
+    else:
+        env.step(3)
+    print(f'已交易{i+1}次    ', end='\r')
+'''
