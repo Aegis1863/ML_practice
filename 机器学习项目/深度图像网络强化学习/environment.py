@@ -91,9 +91,9 @@ class stock:
         if offline == 1: # 离线数据
             self.data = pd.read_csv('k_data.csv')
         else: # 已经有数据了, 则无需此操作
-            code= input('输入股票代码 如: sh.600000')
-            start = input('输入开始时间, 如: 2020-12-01')
-            long = int(input('输入持续时间, 如: 100'))
+            code= input('输入股票代码 如sh.600000: ')
+            start = input('输入开始时间, 如2020-12-01: ')
+            long = int(input('输入持续时间, 如100: '))
             self.data = get_data(str(code), str(start), long)
             
         self.amount = 0 # 持仓状态
@@ -142,4 +142,3 @@ class stock:
             done = 0
         
         return self.make_img(self.data, figure_show=0), reward, done
-
