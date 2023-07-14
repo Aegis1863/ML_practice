@@ -6,16 +6,20 @@ import random
 import gymnasium as gym
 
 class ReplayBuffer:
+    '''经验缓存
+    
+    输入一个整数
+    '''
     def __init__(self, capacity):
         self.buffer = collections.deque(maxlen=capacity) 
 
-    def add(self, state, action, reward, next_state, done): 
-        self.buffer.append((state, action, reward, next_state, done)) 
+    def add(self, state, action, reward, next_state, done, truncated): 
+        self.buffer.append((state, action, reward, next_state, done, truncated)) 
 
     def sample(self, batch_size): 
         transitions = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = zip(*transitions)
-        return np.array(state), action, reward, np.array(next_state), done 
+        state, action, reward, next_state, done, truncated = zip(*transitions)
+        return np.array(state), action, reward, np.array(next_state), done, truncated
 
     def size(self): 
         return len(self.buffer)
@@ -95,18 +99,22 @@ def compute_advantage(gamma, lmbda, td_delta):
     advantage_list.reverse()
     return torch.tensor(advantage_list, dtype=torch.float)
 
-def show_gym_policy(name, model, epochs=10, steps=300):
-    env = gym.make(name, render_mode="human")
+def show_gym_policy(name, model, render_mode="human", epochs=10, steps=300):
+    env = gym.make(name, render_mode=render_mode)
     env.reset()
     totals = []
     for i in range(epochs):  # 测试轮数
         episode_rewards = 0
         obs = env.reset()[0]  # 第二个输出为info，可以不要
         for _ in range(steps):  # 每回合最多300步
-            Q_values = model(torch.tensor(obs).to('cuda'))
-            action = np.argmax(Q_values.tolist())
-            obs, reward, done, truncated, info = env.step(action)
-            episode_rewards += reward
+            try:
+                Q_values = model(torch.tensor(obs).to('cuda'))
+                action = np.argmax(Q_values.tolist())
+                obs, reward, done, truncated, info = env.step(action)
+                episode_rewards += reward
+            except:
+                env.close()
+                raise Exception('Action execution error!')
             if done or truncated:
                 break
         totals.append((episode_rewards))
