@@ -32,61 +32,116 @@ def moving_average(a, window_size):
     end = (np.cumsum(a[:-window_size:-1])[::2] / r)[::-1]
     return np.concatenate((begin, middle, end))
 
-def train_on_policy_agent(env, agent, num_episodes):
+def train_on_policy_agent(env, agent, s_epoch, total_epoch, s_episode, total_episode, reward_list, ckp_path):
     '''
-    在线策略
+    在线策略, 没有经验池
     '''
-    return_list = []
-    for i in range(10):
-        with tqdm(total=int(num_episodes/10), desc='Iteration %d' % i) as pbar:
-            for i_episode in range(int(num_episodes/10)):
-                episode_return = 0
-                transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': []}
-                state = env.reset()
-                done = False
-                while not done:
+    best_score = 0
+    if not reward_list:
+        reward_list = []
+    for epoch in range(s_epoch, total_epoch):
+        with tqdm(total=(total_episode - s_episode), desc='<%d/%d>' % (epoch + 1, total_epoch), leave=False) as pbar:
+            for episode in range(s_episode, total_episode):
+                episode_reward = 0
+                transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [],
+                                   'dones': [], 'truncated': []}
+                state = env.reset()[0]
+                done = truncated = False
+                while not (done | truncated):
                     action = agent.take_action(state)
-                    next_state, reward, done, _ = env.step(action)
+                    next_state, reward, done, truncated, _ = env.step(action)
                     transition_dict['states'].append(state)
                     transition_dict['actions'].append(action)
                     transition_dict['next_states'].append(next_state)
                     transition_dict['rewards'].append(reward)
                     transition_dict['dones'].append(done)
+                    transition_dict['truncated'].append(truncated)
                     state = next_state
-                    episode_return += reward
-                return_list.append(episode_return)
+                    episode_reward += reward
+                reward_list.append(episode_reward)
                 agent.update(transition_dict)
-                if (i_episode+1) % 10 == 0:
-                    pbar.set_postfix({'episode': '%d' % (num_episodes/10 * i + i_episode+1), 'return': '%.3f' % np.mean(return_list[-10:])})
+                if (episode+1) % 10 == 0:
+                    pbar.set_postfix({'episode': '%d' % (total_episode * epoch + episode + 1),
+                                      'recent_return': '%.3f' % np.mean(reward_list[-10:])})
+                    
+                if episode_reward > best_score:
+                    actor_best_weight = agent.actor.state_dict()
+                    critic_best_weight = agent.critic.state_dict()
+                    best_score = episode_reward
+                    
+                torch.save({
+                'epoch': epoch,
+                'episode': episode,
+                'actor_best_weight': actor_best_weight,
+                'critic_best_weight' : critic_best_weight,
+                'reward_list': reward_list,
+                }, ckp_path)
+                    
                 pbar.update(1)
-    return return_list
+            s_episode = 0
+            
+    agent.actor.load_state_dict(actor_best_weight)
+    agent.critic.load_state_dict(critic_best_weight)
+            
+    return reward_list
 
-def train_off_policy_agent(env, agent, num_episodes, replay_buffer, minimal_size, batch_size):
+def train_off_policy_agent(env, 
+                           agent, 
+                           s_epoch,
+                           total_epoch,
+                           s_episode, 
+                           total_episode, 
+                           replay_buffer, 
+                           minimal_size, 
+                           batch_size,
+                           reward_list,
+                           ckp_path):
     '''
-    离线策略,从经验池抽取
+    离线策略, 从经验池抽取
     '''
-    return_list = []
-    for i in range(10):
-        with tqdm(total=int(num_episodes/10), desc='Iteration %d' % i) as pbar:
-            for i_episode in range(int(num_episodes/10)):
-                episode_return = 0
-                state = env.reset()
-                done = False
-                while not done:
+    best_score = 0
+    reward_list = []
+    for epoch in range(s_epoch, total_epoch):
+        with tqdm(total=(total_episode - s_episode), desc='<%d/%d>' % (epoch + 1, total_epoch), leave=False) as pbar:
+            for episode in range(s_episode, total_episode):
+                episode_reward = 0
+                state = env.reset()[0]
+                done = truncated = False
+                while not (done | truncated):
                     action = agent.take_action(state)
-                    next_state, reward, done, _ = env.step(action)
-                    replay_buffer.add(state, action, reward, next_state, done)
+                    next_state, reward, done, truncated, _ = env.step(action)
+                    replay_buffer.add(state, action, reward, next_state, done, truncated)
                     state = next_state
-                    episode_return += reward
+                    episode_reward += reward
                     if replay_buffer.size() > minimal_size:
-                        b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)
-                        transition_dict = {'states': b_s, 'actions': b_a, 'next_states': b_ns, 'rewards': b_r, 'dones': b_d}
+                        b_s, b_a, b_r, b_ns, b_d, b_t = replay_buffer.sample(batch_size)
+                        transition_dict = {'states': b_s, 'actions': b_a, 'next_states': b_ns, 'rewards': b_r, 'dones': b_d, 'truncated': b_t}
                         agent.update(transition_dict)
-                return_list.append(episode_return)
-                if (i_episode+1) % 10 == 0:
-                    pbar.set_postfix({'episode': '%d' % (num_episodes/10 * i + i_episode+1), 'return': '%.3f' % np.mean(return_list[-10:])})
+                reward_list.append(episode_reward)
+                if (episode + 1) % 10 == 0:
+                    pbar.set_postfix({'episode': '%d' % (total_episode * epoch + episode + 1),
+                                      'recent_return': '%.3f' % np.mean(reward_list[-10:])})
+                    
+                if episode_reward > best_score:
+                    actor_best_weight = agent.actor.state_dict()
+                    critic_best_weight = agent.critic.state_dict()
+                    best_score = episode_reward
+                    
+                torch.save({
+                'epoch': epoch,
+                'episode': episode,
+                'actor_best_weight': actor_best_weight,
+                'critic_best_weight' : critic_best_weight,
+                'reward_list': reward_list,
+                }, ckp_path)
+                
                 pbar.update(1)
-    return return_list
+            s_episode = 0 
+            
+    agent.actor.load_state_dict(actor_best_weight)
+    agent.critic.load_state_dict(critic_best_weight)
+        
+    return reward_list
 
 
 def compute_advantage(gamma, lmbda, td_delta):
