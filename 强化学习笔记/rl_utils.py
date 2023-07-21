@@ -4,6 +4,8 @@ import torch
 import collections
 import random
 import gymnasium as gym
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 class ReplayBuffer:
     '''经验缓存
@@ -85,17 +87,8 @@ def train_on_policy_agent(env, agent, s_epoch, total_epoch, s_episode, total_epi
             
     return reward_list
 
-def train_off_policy_agent(env, 
-                           agent, 
-                           s_epoch,
-                           total_epoch,
-                           s_episode, 
-                           total_episode, 
-                           replay_buffer, 
-                           minimal_size, 
-                           batch_size,
-                           reward_list,
-                           ckp_path):
+def train_off_policy_agent(env,  agent,  s_epoch, total_epoch, s_episode,  total_episode,  replay_buffer,
+                           minimal_size,  batch_size, reward_list, ckp_path):
     '''
     离线策略, 从经验池抽取
     '''
@@ -175,3 +168,17 @@ def show_gym_policy(name, model, render_mode="human", epochs=10, steps=300):
         totals.append((episode_rewards))
     env.close()
     return totals
+
+def picture_reward(reward_list, policy_name, env_name, move_avg=9):
+    '''传入回报列表, 策略名称, 环境名称, 移动平均周期'''
+    sns.set()
+    episodes_list = list(range(len(reward_list)))
+    mv_return = moving_average(reward_list, move_avg)
+    plt.plot(episodes_list, reward_list, label='origin', linestyle='-', alpha=0.5)
+
+    plt.plot(episodes_list, mv_return, label='avg 9', linewidth='1.5')
+    plt.title('{} on {}'.format(policy_name, env_name))
+    plt.xlabel('Episodes')
+    plt.ylabel('Total reward')
+    plt.legend()
+    plt.show()
