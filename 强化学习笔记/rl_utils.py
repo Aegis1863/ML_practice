@@ -142,25 +142,44 @@ def compute_advantage(gamma, lmbda, td_delta):
     td_delta = td_delta.detach().numpy()
     advantage_list = []
     advantage = 0.0
-    for delta in td_delta[::-1]:
+    for delta in td_delta[::-1]:  # 逆向折算
         advantage = gamma * lmbda * advantage + delta
         advantage_list.append(advantage)
     advantage_list.reverse()
-    return torch.tensor(advantage_list, dtype=torch.float)
+    advantage_list = torch.tensor(np.array(advantage_list), dtype=torch.float)
+    # 可以对advantage_list进行标准化, 因为优势决定了优化方向
+    # 有的优势虽然是正的，但是很小，就应该弱化这种优势，标准化后就会变成负的，当然也可以直接输出
+    advantage_list = (advantage_list - advantage_list.mean())/(advantage_list.std() + 1e-5)
+    return advantage_list
 
-def show_gym_policy(name, model, render_mode="human", epochs=10, steps=300):
-    env = gym.make(name, render_mode=render_mode)
+def show_gym_policy(env_name, model, model_type: str, render_mode="human", epochs=10, steps=300):
+    '''
+    `env_name`: 环境名称;\\
+    `model`: 类或网络模型, 如agent或agent.net;\\
+    `model_type`: 'AC'或'V', 即演员评论员还是价值策略;\\
+    `render_mode`: 渲染模式;\\
+    `epochs`: 展示轮数\\
+    `steps`: 每轮多少步
+    '''
+    env = gym.make(env_name, render_mode=render_mode)
     env.reset()
     totals = []
     for i in range(epochs):  # 测试轮数
         episode_returns = 0
-        obs = env.reset(seed=42)[0]  # 第二个输出为info，可以不要
+        state = env.reset()[0]  # 第二个输出为info，可以不要
         for _ in range(steps):  # 每回合最多300步
             try:
-                Q_values = model(torch.tensor(obs).to('cuda'))
-                action = np.argmax(Q_values.tolist())
-                obs, reward, done, truncated, info = env.step(action)
-                episode_returns += reward
+                if model_type == 'V':
+                    Q_values = model(torch.tensor(state).to('cuda'))
+                    action = np.argmax(Q_values.tolist())
+                    state, reward, done, truncated, info = env.step(action)
+                    episode_returns += reward
+                elif model_type == 'AC':  # 演员评论员框架的梯度策略
+                    action = model.take_action(state)
+                    state, reward, done, truncated, info = env.step(action)
+                    episode_returns += reward
+                else:
+                    raise Exception('未识别模型类型')
             except:
                 env.close()
                 raise Exception('Action execution error!')
@@ -170,7 +189,7 @@ def show_gym_policy(name, model, render_mode="human", epochs=10, steps=300):
     env.close()
     return totals
 
-def picture_reward(return_list, policy_name, env_name, move_avg=9):
+def picture_return(return_list, policy_name, env_name, move_avg=9):
     '''传入回报列表, 策略名称, 环境名称, 移动平均周期'''
     sns.set()
     episodes_list = list(range(len(return_list)))
@@ -180,6 +199,6 @@ def picture_reward(return_list, policy_name, env_name, move_avg=9):
     plt.plot(episodes_list, mv_return, label='avg 9', linewidth='1.5')
     plt.title('{} on {}'.format(policy_name, env_name))
     plt.xlabel('Episodes')
-    plt.ylabel('Total reward')
+    plt.ylabel('Total return')
     plt.legend()
     plt.show()
