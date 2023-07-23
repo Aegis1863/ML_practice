@@ -38,7 +38,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     '''
     在线策略, 没有经验池, 仅限演员评论员框架
     '''
-    best_score = 0
+    best_score = -1e10  # 初始分数
     if not return_list:
         return_list = []
     for epoch in range(s_epoch, total_epochs):
@@ -62,7 +62,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
                     episode_return += reward
                 return_list.append(episode_return)
                 agent.update(transition_dict)
-                if (episode+1) % 10 == 0:
+                if (episode + 1) % 10 == 0:
                     pbar.set_postfix({'episode': '%d' % (total_episodes * epoch + episode + 1),
                                       'recent_return': '%.3f' % np.mean(return_list[-10:])})
                     
@@ -85,7 +85,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     agent.actor.load_state_dict(actor_best_weight)
     agent.critic.load_state_dict(critic_best_weight)
     
-    # 如果检查点保存了回报列表, 就无需返回      
+    # 如果检查点保存了回报列表, 就无需返回return_list      
     # return return_list
 
 def train_off_policy_agent(env,  agent,  s_epoch, total_epochs, s_episode,  total_episodes,  replay_buffer,
