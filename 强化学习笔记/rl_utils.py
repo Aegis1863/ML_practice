@@ -167,7 +167,6 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
     assert model_type in ['V', 'AC'], '模型类别错误, 应输入 V 或 AC'
     env = gym.make(env_name, render_mode=render_mode)
     env.reset()
-    totals = []
     for i in range(epochs):  # 测试轮数
         episode_returns = 0
         state = env.reset()[0]  # 第二个输出为info，可以不要
@@ -189,9 +188,8 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
                 raise Exception('Action execution error!')
             if done or truncated:
                 break
-        totals.append((episode_returns))
+        print('<%d/%d>:' % (i + 1, epochs), episode_returns.round(3))
     env.close()
-    return np.array(totals).round(3)
 
 def picture_return(return_list, policy_name, env_name, move_avg=9):
     '''传入回报列表, 策略名称, 环境名称, 移动平均周期'''
