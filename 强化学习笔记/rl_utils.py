@@ -147,8 +147,9 @@ def compute_advantage(gamma, lmbda, td_delta):
         advantage_list.append(advantage)
     advantage_list.reverse()
     advantage_list = torch.tensor(np.array(advantage_list), dtype=torch.float)
-    # 可以对advantage_list进行标准化, 因为优势决定了优化方向
-    # 有的优势虽然是正的，但是很小，就应该弱化这种优势，标准化后就会变成负的，当然也可以直接输出
+    # 对advantage_list进行标准化, 因为优势决定了优化方向
+    # 有的优势虽然是正的，但是很小，就应该弱化这种优势，标准化后就会变成负的
+    # 当然也可以直接输出advantage_list
     advantage_list = (advantage_list - advantage_list.mean())/(advantage_list.std() + 1e-5)
     return advantage_list
 
