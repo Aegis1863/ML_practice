@@ -200,7 +200,7 @@ def picture_return(return_list, policy_name, env_name, move_avg=9):
     mv_return = moving_average(return_list, move_avg)
     plt.plot(episodes_list, return_list, label='origin', linestyle='-', alpha=0.5)
 
-    plt.plot(episodes_list, mv_return, label='avg 9', linewidth='1.5')
+    plt.plot(episodes_list, mv_return, label='avg %d' % move_avg, linewidth='1.5')
     plt.title('{} on {}'.format(policy_name, env_name))
     plt.xlabel('Episodes')
     plt.ylabel('Total return')
