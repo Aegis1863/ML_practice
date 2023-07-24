@@ -21,7 +21,7 @@ class ReplayBuffer:
     def sample(self, batch_size): 
         transitions = random.sample(self.buffer, batch_size)
         state, action, reward, next_state, done, truncated = zip(*transitions)
-        return np.array(state), action, reward, np.array(next_state), done, truncated
+        return np.array(state), np.array(action), np.array(reward), np.array(next_state), done, truncated
 
     def size(self): 
         return len(self.buffer)
@@ -88,18 +88,20 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     # 如果检查点保存了回报列表, 就无需返回return_list      
     # return return_list
 
-def train_off_policy_agent(env,  agent,  s_epoch, total_epochs, s_episode,  total_episodes,  replay_buffer,
-                           minimal_size,  batch_size, return_list, ckp_path):
+def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer,
+                           minimal_size, batch_size, return_list, ckp_path):
     '''
     离线策略, 从经验池抽取, 仅限演员评论员框架
     '''
     best_score = 0
-    return_list = []
+    if not return_list:
+        return_list = []
+    best_score = -1e10  # 初始分数
     for epoch in range(s_epoch, total_epochs):
         with tqdm(total=(total_episodes - s_episode), desc='<%d/%d>' % (epoch + 1, total_epochs), leave=False) as pbar:
             for episode in range(s_episode, total_episodes):
                 episode_return = 0
-                state = env.reset(seed=42)[0]
+                state = env.reset()[0]
                 done = truncated = False
                 while not (done | truncated):
                     action = agent.take_action(state)
