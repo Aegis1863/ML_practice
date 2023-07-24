@@ -161,6 +161,7 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
     `epochs`: 展示轮数\\
     `steps`: 每轮多少步
     '''
+    assert model_type in ['V', 'AC'], '模型类别错误, 应输入 V 或 AC'
     env = gym.make(env_name, render_mode=render_mode)
     env.reset()
     totals = []
@@ -187,7 +188,7 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
                 break
         totals.append((episode_returns))
     env.close()
-    return totals
+    return np.array(totals).round(3)
 
 def picture_return(return_list, policy_name, env_name, move_avg=9):
     '''传入回报列表, 策略名称, 环境名称, 移动平均周期'''
