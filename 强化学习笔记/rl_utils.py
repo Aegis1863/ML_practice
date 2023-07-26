@@ -7,7 +7,7 @@ import gymnasium as gym
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
-
+import time
 
 class ReplayBuffer:
     '''经验缓存
@@ -74,6 +74,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     '''
     在线策略, 没有经验池, 仅限演员评论员框架
     '''
+    start_time = time.time()
     best_score = -1e10  # 初始分数
     if not return_list:
         return_list = []
@@ -120,9 +121,11 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
 
     agent.actor.load_state_dict(actor_best_weight)
     agent.critic.load_state_dict(critic_best_weight)
-
-    # 如果检查点保存了回报列表, 就无需返回return_list
-    # return return_list
+    
+    end_time = time.time()
+    print('总耗时: %i分钟' % (end_time - start_time)/60)
+    # 如果检查点保存了回报列表, 可以不返回return_list
+    return return_list
 
 
 def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer,
@@ -142,7 +145,7 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
         默认保存在检查点, 因此无返回
     '''
     assert model_type in [None, 'TD3', 'DDPG'], '模型类型错误, "None", "TD3" 或 "DDPG"...'
-
+    start_time = time.time()
     best_score = 0
     if not return_list:
         return_list = []
@@ -179,32 +182,39 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
                     else:
                         critic_best_weight = agent.critic.state_dict()
                     best_score = episode_return
-                torch.save({
-                    'epoch': epoch,
-                    'episode': episode,
-                    'actor_best_weight': actor_best_weight,
-                    'return_list': return_list,
-                }, ckp_path)
 
                 if model_type == 'TD3':
                     torch.save({
+                        'epoch': epoch,
+                        'episode': episode,
+                        'actor_best_weight': actor_best_weight,
                         'critic_1_best_weight': critic_1_best_weight,
                         'critic_2_best_weight': critic_2_best_weight,
+                        'return_list': return_list,
                     }, ckp_path)
                 else:
-                    torch.save({'critic_1_best_weight': critic_best_weight}, ckp_path)
+                    torch.save({
+                        'epoch': epoch,
+                        'episode': episode,
+                        'actor_best_weight': actor_best_weight,
+                        'critic_1_best_weight': critic_best_weight, 
+                        'return_list': return_list,
+                        }, ckp_path)
 
                 pbar.update(1)
             s_episode = 0
 
     agent.actor.load_state_dict(actor_best_weight)
-    if model_type in [None, 'DDPG']:  # 仅两个网络
-        agent.critic.load_state_dict(critic_best_weight)
-    elif model_type == 'TD3':  # TD3有三个网络
+    if model_type == 'TD3':  # TD3有三个网络
         agent.critic_1.load_state_dict(critic_1_best_weight)
         agent.critic_2.load_state_dict(critic_2_best_weight)
-    # 如果检查点保存了回报列表, 就无需返回
-    # return return_list
+    else:
+        agent.critic.load_state_dict(critic_best_weight)
+        
+    end_time = time.time()
+    print('总耗时: %d分钟' % ((end_time - start_time)/60))
+    # 如果检查点保存了回报列表, 可以不返回
+    return return_list
 
 
 def compute_advantage(gamma, lmbda, td_delta):
@@ -224,7 +234,7 @@ def compute_advantage(gamma, lmbda, td_delta):
     return advantage_list
 
 
-def show_gym_policy(env_name, model, model_type: str, render_mode="human", epochs=10, steps=300, if_return=False):
+def show_gym_policy(env_name, model, model_type: str, render_mode, epochs=10, steps=300, if_return=False):
     '''
     `env_name`: 环境名称;\\
     `model`: 类或网络模型, 如agent或agent.net;\\
@@ -235,6 +245,8 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
     `if_return`: 是否返回表, 默认False
     '''
     assert model_type in ['V', 'AC', 'TD3'], '模型类别错误, 应输入 V 或 AC 或 TD3'
+    if epochs > 10:
+         render_mode == 'rgb_array'
     env = gym.make(env_name, render_mode=render_mode)
     env.reset()
     test_list = []
@@ -250,7 +262,7 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
                         state, reward, done, truncated, info = env.step(action)
                         episode_returns += reward
                     elif model_type == 'AC':  # 演员评论员框架的梯度策略
-                        if model_type == 'TD3':
+                        if model_type in ['TD3', 'DDPG']:  # 预测动作时不引入噪声
                             action = model.predict_action(state)
                         else:
                             action = model.take_action(state)
@@ -270,8 +282,10 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
                 pbar.set_postfix(
                     {'epoch': '%d' % (i), 'recent_return': '%.3f' % np.mean(test_list[-5:])})
             pbar.update(1)
-
     env.close()
+    print(np.mean(test_list).round(3))
+    
+    pic_name = model.__class__.__name__  # 获得类名
     if if_return:
-        picture_return(test_list, model.actor._get_name(), env_name)
+        picture_return(test_list, pic_name, env_name)
         return test_list
