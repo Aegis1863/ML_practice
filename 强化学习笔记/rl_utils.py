@@ -8,28 +8,32 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 class ReplayBuffer:
     '''经验缓存
-    
+
     输入一个整数
     '''
+
     def __init__(self, capacity):
-        self.buffer = collections.deque(maxlen=capacity) 
+        self.buffer = collections.deque(maxlen=capacity)
 
-    def add(self, state, action, reward, next_state, done, truncated): 
-        self.buffer.append((state, action, reward, next_state, done, truncated)) 
+    def add(self, state, action, reward, next_state, done, truncated):
+        self.buffer.append(
+            (state, action, reward, next_state, done, truncated))
 
-    def sample(self, batch_size): 
+    def sample(self, batch_size):
         transitions = random.sample(self.buffer, batch_size)
         state, action, reward, next_state, done, truncated = zip(*transitions)
         return np.array(state), np.array(action), np.array(reward), np.array(next_state), done, truncated
 
-    def size(self): 
+    def size(self):
         return len(self.buffer)
+
 
 def picture_return(return_list, policy_name, env_name, move_avg=10):
     '''生成图像
-    
+
     参数 Parameters
     ----------
     - return_list : list
@@ -47,20 +51,24 @@ def picture_return(return_list, policy_name, env_name, move_avg=10):
     alpha = 0.5 if move_avg else 1
     return_list.plot(alpha=alpha, label='原数据')
     if move_avg:
-        return_list.rolling(window=move_avg).mean().plot(label='%d次移动平均' % move_avg)
+        return_list.rolling(window=move_avg).mean().plot(
+            label='%d次移动平均' % move_avg)
     plt.title('%s on %s' % (policy_name, env_name), fontsize=13)
     plt.xlabel('训练轮数', fontsize=13)
     plt.ylabel('总回报', fontsize=13)
     plt.legend(fontsize=13)
     plt.show()
 
+
 def moving_average(a, window_size):
-    cumulative_sum = np.cumsum(np.insert(a, 0, 0)) 
-    middle = (cumulative_sum[window_size:] - cumulative_sum[:-window_size]) / window_size
+    cumulative_sum = np.cumsum(np.insert(a, 0, 0))
+    middle = (cumulative_sum[window_size:] -
+              cumulative_sum[:-window_size]) / window_size
     r = np.arange(1, window_size-1, 2)
     begin = np.cumsum(a[:window_size-1])[::2] / r
     end = (np.cumsum(a[:-window_size:-1])[::2] / r)[::-1]
     return np.concatenate((begin, middle, end))
+
 
 def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, return_list, ckp_path):
     '''
@@ -93,47 +101,48 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
                 if (episode + 1) % 10 == 0:
                     pbar.set_postfix({'episode': '%d' % (total_episodes * epoch + episode + 1),
                                       'recent_return': '%.3f' % np.mean(return_list[-10:])})
-                    
+
                 if episode_return > best_score:
                     actor_best_weight = agent.actor.state_dict()
                     critic_best_weight = agent.critic.state_dict()
                     best_score = episode_return
-                    
+
                 torch.save({
-                'epoch': epoch,
-                'episode': episode,
-                'actor_best_weight': actor_best_weight,
-                'critic_best_weight' : critic_best_weight,
-                'return_list': return_list,
+                    'epoch': epoch,
+                    'episode': episode,
+                    'actor_best_weight': actor_best_weight,
+                    'critic_best_weight': critic_best_weight,
+                    'return_list': return_list,
                 }, ckp_path)
-                    
+
                 pbar.update(1)
             s_episode = 0
-            
+
     agent.actor.load_state_dict(actor_best_weight)
     agent.critic.load_state_dict(critic_best_weight)
-    
-    # 如果检查点保存了回报列表, 就无需返回return_list      
+
+    # 如果检查点保存了回报列表, 就无需返回return_list
     # return return_list
+
 
 def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer,
                            minimal_size, batch_size, return_list, ckp_path, model_type=None):
     '''离线策略, 从经验池抽取, 仅限演员评论员框架
-    
+
     参数 Parameters
     ----------
     ckp_path : str
         检查点路径
     model_type : str, 可选
         None 或 TD3 或 DDPG; 后两者采取动作时不需引入噪声, 前者没区别, by default None
-    
+
     返回 Returns
     -------
     return_list
         默认保存在检查点, 因此无返回
     '''
     assert model_type in [None, 'TD3', 'DDPG'], '模型类型错误, "None", "TD3" 或 "DDPG"...'
-    
+
     best_score = 0
     if not return_list:
         return_list = []
@@ -145,62 +154,58 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
                 state = env.reset()[0]
                 done = truncated = False
                 while not (done | truncated):
-                    if model_type == None:
-                        action = agent.take_action(state)
-                    elif model_type in ['DDPG', 'TD3']:  # 不加噪声动作
-                        action = agent.predict_action(state)
+                    action = agent.take_action(state)
                     next_state, reward, done, truncated, _ = env.step(action)
                     replay_buffer.add(state, action, reward, next_state, done, truncated)
                     state = next_state
                     episode_return += reward
                     if replay_buffer.size() > minimal_size:
-                        b_s, b_a, b_r, b_ns, b_d, b_t = replay_buffer.sample(batch_size)
-                        transition_dict = {'states': b_s, 'actions': b_a, 'next_states': b_ns, 'rewards': b_r, 'dones': b_d, 'truncated': b_t}
+                        b_s, b_a, b_r, b_ns, b_d, b_t = replay_buffer.sample(
+                            batch_size)
+                        transition_dict = {'states': b_s, 'actions': b_a, 'next_states': b_ns, 
+                                           'rewards': b_r, 'dones': b_d, 'truncated': b_t}
                         agent.update(transition_dict)
                 return_list.append(episode_return)
-                
+
                 if (episode + 1) % 10 == 0:
                     pbar.set_postfix({'episode': '%d' % (total_episodes * epoch + episode + 1),
                                       'recent_return': '%.3f' % np.mean(return_list[-10:])})
-                    
-                if model_type in [None, 'DDPG']:  # 仅两个网络
-                    if episode_return > best_score:
-                        actor_best_weight = agent.actor.state_dict()
-                        critic_best_weight = agent.critic.state_dict()
-                        best_score = episode_return   
-                    torch.save({
-                    'epoch': epoch,
-                    'episode': episode,
-                    'actor_best_weight': actor_best_weight,
-                    'critic_best_weight' : critic_best_weight,
-                    'return_list': return_list,
-                    }, ckp_path)
-                elif model_type == 'TD3':  # TD3有三个网络
-                    if episode_return > best_score:
-                        actor_best_weight = agent.actor.state_dict()
+
+                if episode_return > best_score:
+                    actor_best_weight = agent.actor.state_dict()
+                    if model_type == 'TD3':  # TD3有三个网络
                         critic_1_best_weight = agent.critic_1.state_dict()
                         critic_2_best_weight = agent.critic_2.state_dict()
-                        best_score = episode_return
-                    torch.save({
+                    else:
+                        critic_best_weight = agent.critic.state_dict()
+                    best_score = episode_return
+                torch.save({
                     'epoch': epoch,
                     'episode': episode,
                     'actor_best_weight': actor_best_weight,
-                    'critic_1_best_weight' : critic_1_best_weight,
-                    'critic_2_best_weight' : critic_2_best_weight,
                     'return_list': return_list,
+                }, ckp_path)
+
+                if model_type == 'TD3':
+                    torch.save({
+                        'critic_1_best_weight': critic_1_best_weight,
+                        'critic_2_best_weight': critic_2_best_weight,
                     }, ckp_path)
-                
+                else:
+                    torch.save({'critic_1_best_weight': critic_best_weight}, ckp_path)
+
                 pbar.update(1)
             s_episode = 0
-            
+
     agent.actor.load_state_dict(actor_best_weight)
-    if model_type in [None, 'DDPG']:  # 仅两个网络        
+    if model_type in [None, 'DDPG']:  # 仅两个网络
         agent.critic.load_state_dict(critic_best_weight)
     elif model_type == 'TD3':  # TD3有三个网络
         agent.critic_1.load_state_dict(critic_1_best_weight)
         agent.critic_2.load_state_dict(critic_2_best_weight)
-    # 如果检查点保存了回报列表, 就无需返回      
+    # 如果检查点保存了回报列表, 就无需返回
     # return return_list
+
 
 def compute_advantage(gamma, lmbda, td_delta):
     td_delta = td_delta.detach().numpy()
@@ -214,8 +219,10 @@ def compute_advantage(gamma, lmbda, td_delta):
     # 对advantage_list进行标准化, 因为优势决定了优化方向
     # 有的优势虽然是正的，但是很小，就应该弱化这种优势，标准化后就会变成负的
     # 当然也可以直接输出advantage_list
-    advantage_list = (advantage_list - advantage_list.mean())/(advantage_list.std() + 1e-5)
+    advantage_list = (advantage_list - advantage_list.mean()) / \
+        (advantage_list.std() + 1e-5)
     return advantage_list
+
 
 def show_gym_policy(env_name, model, model_type: str, render_mode="human", epochs=10, steps=300, if_return=False):
     '''
@@ -227,7 +234,7 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
     `steps`: 每轮多少步\\
     `if_return`: 是否返回表, 默认False
     '''
-    assert model_type in ['V', 'AC'], '模型类别错误, 应输入 V 或 AC'
+    assert model_type in ['V', 'AC', 'TD3'], '模型类别错误, 应输入 V 或 AC 或 TD3'
     env = gym.make(env_name, render_mode=render_mode)
     env.reset()
     test_list = []
@@ -243,7 +250,10 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
                         state, reward, done, truncated, info = env.step(action)
                         episode_returns += reward
                     elif model_type == 'AC':  # 演员评论员框架的梯度策略
-                        action = model.take_action(state)
+                        if model_type == 'TD3':
+                            action = model.predict_action(state)
+                        else:
+                            action = model.take_action(state)
                         state, reward, done, truncated, info = env.step(action)
                         episode_returns += reward
                     else:
@@ -255,11 +265,12 @@ def show_gym_policy(env_name, model, model_type: str, render_mode="human", epoch
                     break
             if if_return:
                 test_list.append(episode_returns)
-                
+
             if (i + 1) % 5 == 0:
-                pbar.set_postfix({'epoch': '%d' % (i), 'recent_return': '%.3f' % np.mean(test_list[-5:])})
+                pbar.set_postfix(
+                    {'epoch': '%d' % (i), 'recent_return': '%.3f' % np.mean(test_list[-5:])})
             pbar.update(1)
-            
+
     env.close()
     if if_return:
         picture_return(test_list, model.actor._get_name(), env_name)
