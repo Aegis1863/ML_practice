@@ -87,6 +87,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
                 done = truncated = False
                 while not (done | truncated):
                     action = agent.take_action(state)
+                    assert type(action) is list, 'action 必须是列表'
                     next_state, reward, done, truncated, _ = env.step(action)
                     transition_dict['states'].append(state)
                     transition_dict['actions'].append(action)
