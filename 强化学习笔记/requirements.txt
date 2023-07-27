@@ -1,6 +1,0 @@
-# torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-# torch 2.0.1
-matplotlib == 3.7.1
-pandas == 1.5.3
-numpy == 1.23.5
-gymnasuim[all]

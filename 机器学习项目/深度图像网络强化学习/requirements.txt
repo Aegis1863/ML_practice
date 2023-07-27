@@ -1,5 +1,0 @@
-matplotlib
-pandas
-numpy
-mplfinance
-baostock
