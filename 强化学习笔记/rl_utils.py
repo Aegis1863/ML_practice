@@ -51,8 +51,7 @@ def picture_return(return_list, policy_name, env_name, move_avg=10):
     alpha = 0.5 if move_avg else 1
     return_list.plot(alpha=alpha, label='原数据')
     if move_avg:
-        return_list.rolling(window=move_avg).mean().plot(
-            label='%d次移动平均' % move_avg)
+        return_list.rolling(window=move_avg).mean().plot(label='%d次移动平均' % move_avg, linewidth=1.5)
     plt.title('%s on %s' % (policy_name, env_name), fontsize=13)
     plt.xlabel('训练轮数', fontsize=13)
     plt.ylabel('总回报', fontsize=13)
@@ -123,28 +122,29 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     agent.critic.load_state_dict(critic_best_weight)
     
     end_time = time.time()
-    print('总耗时: %i分钟' % (end_time - start_time)/60)
+    print('总耗时: %i分钟' % ((end_time - start_time)/60))
     # 如果检查点保存了回报列表, 可以不返回return_list
     return return_list
 
 
 def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer,
-                           minimal_size, batch_size, return_list, ckp_path, model_type=None):
+                           minimal_size, batch_size, return_list, ckp_path, net_num=2):
     '''离线策略, 从经验池抽取, 仅限演员评论员框架
 
     参数 Parameters
     ----------
     ckp_path : str
         检查点路径
-    model_type : str, 可选
-        None 或 TD3 或 DDPG; 后两者采取动作时不需引入噪声, 前者没区别, by default None
+    net_num : int, 可选
+        网络个数, 因部分网络有两个评论员, 共三个网络 ; by default 2
 
     返回 Returns
     -------
     return_list
         默认保存在检查点, 因此无返回
     '''
-    assert model_type in [None, 'TD3', 'DDPG'], '模型类型错误, "None", "TD3" 或 "DDPG"...'
+
+    assert net_num >= 2, '网络个数错误'
     start_time = time.time()
     best_score = 0
     if not return_list:
@@ -176,14 +176,14 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
 
                 if episode_return > best_score:
                     actor_best_weight = agent.actor.state_dict()
-                    if model_type == 'TD3':  # TD3有三个网络
+                    if net_num == 3:
                         critic_1_best_weight = agent.critic_1.state_dict()
                         critic_2_best_weight = agent.critic_2.state_dict()
                     else:
                         critic_best_weight = agent.critic.state_dict()
                     best_score = episode_return
 
-                if model_type == 'TD3':
+                if net_num == 3:
                     torch.save({
                         'epoch': epoch,
                         'episode': episode,
@@ -205,7 +205,7 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
             s_episode = 0
 
     agent.actor.load_state_dict(actor_best_weight)
-    if model_type == 'TD3':  # TD3有三个网络
+    if net_num == 3:  # TD3和SAC有两个评论员网络
         agent.critic_1.load_state_dict(critic_1_best_weight)
         agent.critic_2.load_state_dict(critic_2_best_weight)
     else:
@@ -229,22 +229,21 @@ def compute_advantage(gamma, lmbda, td_delta):
     # 对advantage_list进行标准化, 因为优势决定了优化方向
     # 有的优势虽然是正的，但是很小，就应该弱化这种优势，标准化后就会变成负的
     # 当然也可以直接输出advantage_list
-    advantage_list = (advantage_list - advantage_list.mean()) / \
-        (advantage_list.std() + 1e-5)
+    advantage_list = (advantage_list - advantage_list.mean()) / (advantage_list.std() + 1e-5)
     return advantage_list
 
 
-def show_gym_policy(env_name, model, model_type: str, render_mode, epochs=10, steps=300, if_return=False):
+def show_gym_policy(env_name, model, render_mode, epochs=10, steps=300, model_type='AC', if_return=False):
     '''
     `env_name`: 环境名称;\\
     `model`: 类或网络模型, 如agent或agent.net;\\
-    `model_type`: 'AC'或'V', 即演员评论员还是价值策略;\\
     `render_mode`: 渲染模式;\\
     `epochs`: 展示轮数\\
     `steps`: 每轮多少步\\
+    `model_type`: `V`, `AC`或`AC_n`, 即`价值策略`, `演员评论员`或`强制要求无噪音`;\\    
     `if_return`: 是否返回表, 默认False
     '''
-    assert model_type in ['V', 'AC', 'TD3'], '模型类别错误, 应输入 V 或 AC 或 TD3'
+    assert model_type in ['V', 'AC'], '模型类别错误, 应输入 V 或 AC'
     if epochs > 10:
          render_mode == 'rgb_array'
     env = gym.make(env_name, render_mode=render_mode)
@@ -259,17 +258,11 @@ def show_gym_policy(env_name, model, model_type: str, render_mode, epochs=10, st
                     if model_type == 'V':
                         Q_values = model(torch.tensor(state).to('cuda'))
                         action = np.argmax(Q_values.tolist())
-                        state, reward, done, truncated, info = env.step(action)
-                        episode_returns += reward
                     elif model_type == 'AC':  # 演员评论员框架的梯度策略
-                        if model_type in ['TD3', 'DDPG']:  # 预测动作时不引入噪声
-                            action = model.predict_action(state)
-                        else:
-                            action = model.take_action(state)
-                        state, reward, done, truncated, info = env.step(action)
-                        episode_returns += reward
-                    else:
-                        raise Exception('未识别模型类型')
+                        model.training = False
+                        action = model.take_action(state)
+                    state, reward, done, truncated, info = env.step([action])
+                    episode_returns += reward
                 except:
                     env.close()
                     raise Exception('Action execution error!')
@@ -283,7 +276,7 @@ def show_gym_policy(env_name, model, model_type: str, render_mode, epochs=10, st
                     {'epoch': '%d' % (i), 'recent_return': '%.3f' % np.mean(test_list[-5:])})
             pbar.update(1)
     env.close()
-    print(np.mean(test_list).round(3))
+    print('平均回报: ', np.mean(test_list).round(3))
     
     pic_name = model.__class__.__name__  # 获得类名
     if if_return:
