@@ -261,7 +261,7 @@ def show_gym_policy(env_name, model, render_mode, epochs=10, steps=300, model_ty
                     elif model_type == 'AC':  # 演员评论员框架的梯度策略
                         model.training = False
                         action = model.take_action(state)
-                    state, reward, done, truncated, info = env.step([action])
+                    state, reward, done, truncated, info = env.step(action)
                     episode_returns += reward
                 except:
                     env.close()
@@ -277,7 +277,7 @@ def show_gym_policy(env_name, model, render_mode, epochs=10, steps=300, model_ty
             pbar.update(1)
     env.close()
     print('平均回报: ', np.mean(test_list).round(3))
-    
+    model.training = True  # 演示完毕还原训练状态
     pic_name = model.__class__.__name__  # 获得类名
     if if_return:
         picture_return(test_list, pic_name, env_name)
