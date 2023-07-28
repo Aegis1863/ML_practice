@@ -87,7 +87,6 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
                 done = truncated = False
                 while not (done | truncated):
                     action = agent.take_action(state)
-                    assert type(action) is list, 'action 必须是列表'
                     next_state, reward, done, truncated, _ = env.step(action)
                     transition_dict['states'].append(state)
                     transition_dict['actions'].append(action)
@@ -234,7 +233,7 @@ def compute_advantage(gamma, lmbda, td_delta):
     return advantage_list
 
 
-def show_gym_policy(env_name, model, render_mode, epochs=10, steps=300, model_type='AC', if_return=False):
+def show_gym_policy(env_name, model, render_mode='human', epochs=10, steps=300, model_type='AC', if_return=False):
     '''
     `env_name`: 环境名称;\\
     `model`: 类或网络模型, 如agent或agent.net;\\
@@ -246,7 +245,7 @@ def show_gym_policy(env_name, model, render_mode, epochs=10, steps=300, model_ty
     '''
     assert model_type in ['V', 'AC'], '模型类别错误, 应输入 V 或 AC'
     if epochs > 10:
-         render_mode == 'rgb_array'
+        render_mode == 'rgb_array'
     env = gym.make(env_name, render_mode=render_mode)
     env.reset()
     test_list = []
@@ -281,5 +280,6 @@ def show_gym_policy(env_name, model, render_mode, epochs=10, steps=300, model_ty
     model.training = True  # 演示完毕还原训练状态
     pic_name = model.__class__.__name__  # 获得类名
     if if_return:
-        picture_return(test_list, pic_name, env_name)
-        return test_list
+        move_avg = 0 if epochs <= 10 else 10
+        picture_return(test_list, pic_name, env_name, move_avg)
+    return test_list
