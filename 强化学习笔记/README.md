@@ -1,5 +1,7 @@
 需求环境
 
+建议在pytorch官网复制命令一次性执行安装，请勿手动分别安装PyTorch和cuda
+
 ```
 
 PyTorch == 2.0.1
