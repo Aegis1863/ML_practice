@@ -73,6 +73,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     '''
     在线策略, 没有经验池, 仅限演员评论员框架
     '''
+    actor_best_weight = 0
     start_time = time.time()
     best_score = -1e10  # 初始分数
     if not return_list:
@@ -117,17 +118,18 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
 
                 pbar.update(1)
             s_episode = 0
-
-    agent.actor.load_state_dict(actor_best_weight)
-    agent.critic.load_state_dict(critic_best_weight)
-    
+    try:        
+        agent.actor.load_state_dict(actor_best_weight)
+        agent.critic.load_state_dict(critic_best_weight)
+    except:
+        raise 'please check file route of checkpoints...'
     end_time = time.time()
     print('总耗时: %i分钟' % ((end_time - start_time)/60))
     # 如果检查点保存了回报列表, 可以不返回return_list
     return return_list
 
 
-def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer,
+def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer, 
                            minimal_size, batch_size, return_list, ckp_path, net_num=2):
     '''离线策略, 从经验池抽取, 仅限演员评论员框架
 
@@ -144,9 +146,9 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
         默认保存在检查点, 因此无返回
     '''
 
-    assert net_num >= 2, '网络个数错误'
+    assert net_num >= 2, 'AC网络至少要有两个网络...'
+    assert (s_epoch <= total_epochs) or (s_episode <= total_episodes), '结束轮数小于起始轮数...'
     start_time = time.time()
-    best_score = 0
     if not return_list:
         return_list = []
     best_score = -1e10  # 初始分数
@@ -169,11 +171,6 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
                                            'rewards': b_r, 'dones': b_d, 'truncated': b_t}
                         agent.update(transition_dict)
                 return_list.append(episode_return)
-
-                if (episode + 1) % 10 == 0:
-                    pbar.set_postfix({'episode': '%d' % (total_episodes * epoch + episode + 1),
-                                      'recent_return': '%.3f' % np.mean(return_list[-10:])})
-
                 if episode_return > best_score:
                     actor_best_weight = agent.actor.state_dict()
                     if net_num == 3:
@@ -200,17 +197,21 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
                         'critic_1_best_weight': critic_best_weight, 
                         'return_list': return_list,
                         }, ckp_path)
-
+                    
+                if (episode + 1) % 10 == 0:
+                    pbar.set_postfix({'episode': '%d' % (total_episodes * epoch + episode + 1),
+                                      'recent_return': '%.3f' % np.mean(return_list[-10:])})
                 pbar.update(1)
             s_episode = 0
-
-    agent.actor.load_state_dict(actor_best_weight)
-    if net_num == 3:  # TD3和SAC有两个评论员网络
-        agent.critic_1.load_state_dict(critic_1_best_weight)
-        agent.critic_2.load_state_dict(critic_2_best_weight)
-    else:
-        agent.critic.load_state_dict(critic_best_weight)
-        
+    try: 
+        agent.actor.load_state_dict(actor_best_weight)
+        if net_num == 3:  # TD3和SAC有两个评论员网络
+            agent.critic_1.load_state_dict(critic_1_best_weight)
+            agent.critic_2.load_state_dict(critic_2_best_weight)
+        else:
+            agent.critic.load_state_dict(critic_best_weight)
+    except:
+        raise 'please check file route of checkpoints...'    
     end_time = time.time()
     print('总耗时: %d分钟' % ((end_time - start_time)/60))
     # 如果检查点保存了回报列表, 可以不返回
@@ -233,7 +234,7 @@ def compute_advantage(gamma, lmbda, td_delta):
     return advantage_list
 
 
-def show_gym_policy(env_name, model, render_mode='human', epochs=10, steps=300, model_type='AC', if_return=False):
+def show_gym_policy(env_name, model, render_mode='human', epochs=10, steps=500, model_type='AC', if_return=False):
     '''
     `env_name`: 环境名称;\\
     `model`: 类或网络模型, 如agent或agent.net;\\
@@ -268,8 +269,7 @@ def show_gym_policy(env_name, model, render_mode='human', epochs=10, steps=300, 
                     raise Exception('Action execution error!')
                 if done or truncated:
                     break
-            if if_return:
-                test_list.append(episode_returns)
+            test_list.append(episode_returns)
 
             if (i + 1) % 5 == 0:
                 pbar.set_postfix(
