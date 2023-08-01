@@ -165,8 +165,7 @@ def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_e
                     state = next_state
                     episode_return += reward
                     if replay_buffer.size() > minimal_size:
-                        b_s, b_a, b_r, b_ns, b_d, b_t = replay_buffer.sample(
-                            batch_size)
+                        b_s, b_a, b_r, b_ns, b_d, b_t = replay_buffer.sample(batch_size)
                         transition_dict = {'states': b_s, 'actions': b_a, 'next_states': b_ns, 
                                            'rewards': b_r, 'dones': b_d, 'truncated': b_t}
                         agent.update(transition_dict)
