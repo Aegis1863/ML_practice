@@ -73,7 +73,6 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
     '''
     在线策略, 没有经验池, 仅限演员评论员框架
     '''
-    actor_best_weight = 0
     start_time = time.time()
     best_score = -1e10  # 初始分数
     if not return_list:
