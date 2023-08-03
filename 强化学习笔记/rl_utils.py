@@ -98,7 +98,8 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
                     state = next_state
                     episode_return += reward
                 return_list.append(episode_return)
-                agent.update(transition_dict)
+                agent.update(transition_dict)  # 更新参数
+                
                 if (episode + 1) % 10 == 0:
                     pbar.set_postfix({'episode': '%d' % (total_episodes * epoch + episode + 1),
                                       'recent_return': '%.3f' % np.mean(return_list[-10:])})
