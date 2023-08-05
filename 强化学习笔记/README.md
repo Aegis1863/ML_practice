@@ -14,6 +14,7 @@ numpy == 1.24.3
 
 pandas == 1.5.3
 
+matplotlib == 3.7.1
 ```
 
 本笔记基于《Easy RL》和《动手学强化学习》
