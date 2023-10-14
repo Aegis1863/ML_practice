@@ -19,8 +19,7 @@ class ReplayBuffer:
         self.buffer = collections.deque(maxlen=capacity)
 
     def add(self, state, action, reward, next_state, done, truncated):
-        self.buffer.append(
-            (state, action, reward, next_state, done, truncated))
+        self.buffer.append((state, action, reward, next_state, done, truncated))
 
     def sample(self, batch_size):
         transitions = random.sample(self.buffer, batch_size)
