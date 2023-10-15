@@ -52,7 +52,7 @@ class SAC:
         self.device = device
 
     def take_action(self, state):
-        state = torch.tensor(state, dtype=torch.float).to(self.device).unsqueeze(0)
+        state = torch.tensor(state[np.newaxis, :], dtype=torch.float).to(self.device)
         probs = self.actor(state)
         action_dist = torch.distributions.Categorical(probs)
         action = action_dist.sample()

@@ -78,7 +78,7 @@ class DQN:
         if np.random.random() < self.epsilon:
             action = np.random.randint(self.action_dim)
         else:
-            state = torch.tensor(state, dtype=torch.float).to(self.device)
+            state = torch.tensor(state[np.newaxis, :], dtype=torch.float).to(self.device)
             action = self.q_net(state).argmax().item() # 转动作序号
         return action
 
