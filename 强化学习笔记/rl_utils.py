@@ -18,7 +18,7 @@ class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = collections.deque(maxlen=capacity)
 
-    def add(self, state, action, reward, next_state, done, truncated):
+    def add(self, state:np.ndarray, action:torch.tensor, reward:float, next_state:np.ndarray, done:int, truncated:int):
         self.buffer.append((state, action, reward, next_state, done, truncated))
 
     def sample(self, batch_size):
