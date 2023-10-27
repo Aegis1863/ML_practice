@@ -70,7 +70,7 @@ def moving_average(a, window_size):
 
 def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, return_list, ckp_path):
     '''
-    在线策略, 没有经验池, 仅限演员评论员框架
+    同策略, 没有经验池, 仅限演员评论员框架
     '''
     start_time = time.time()
     best_score = -1e10  # 初始分数
@@ -130,7 +130,7 @@ def train_on_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_ep
 
 def train_off_policy_agent(env, agent, s_epoch, total_epochs, s_episode, total_episodes, replay_buffer, 
                            minimal_size, batch_size, return_list, ckp_path, net_num=2):
-    '''离线策略, 从经验池抽取, 仅限演员评论员框架
+    '''异策略, 从经验池抽取, 仅限演员评论员框架
 
     参数 Parameters
     ----------
