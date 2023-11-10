@@ -297,7 +297,7 @@ def train_off_policy_agent(
     return return_list
 
 
-def compute_advantage(gamma: float, lmbda: float, td_delta: list):
+def compute_advantage(gamma: float, lmbda: float, td_delta: torch.Tensor):
     td_delta = td_delta.detach().numpy()
     advantage_list = []
     advantage = 0.0
