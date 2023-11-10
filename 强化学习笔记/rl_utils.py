@@ -16,7 +16,7 @@ class ReplayBuffer:
     输入一个整数
     """
 
-    def __init__(self, capacity):
+    def __init__(self, capacity: int):
         self.buffer = collections.deque(maxlen=capacity)
 
     def add(
@@ -30,7 +30,7 @@ class ReplayBuffer:
     ):
         self.buffer.append((state, action, reward, next_state, done, truncated))
 
-    def sample(self, batch_size):
+    def sample(self, batch_size: int):
         transitions = random.sample(self.buffer, batch_size)
         state, action, reward, next_state, done, truncated = zip(*transitions)
         return (
@@ -90,7 +90,14 @@ def moving_average(a, window_size):
 
 
 def train_on_policy_agent(
-    env, agent, s_epoch, total_epochs, s_episode, total_episodes, return_list, ckp_path
+    env: object,
+    agent: object,
+    s_epoch: int,
+    total_epochs: int,
+    s_episode: int,
+    total_episodes: int,
+    return_list: list,
+    ckp_path: str,
 ):
     """
     同策略, 没有经验池, 仅限演员评论员框架
@@ -169,18 +176,18 @@ def train_on_policy_agent(
 
 
 def train_off_policy_agent(
-    env,
-    agent,
-    s_epoch,
-    total_epochs,
-    s_episode,
-    total_episodes,
-    replay_buffer,
-    minimal_size,
-    batch_size,
-    return_list,
-    ckp_path,
-    net_num=2,
+    env: object,
+    agent: object,
+    s_epoch: int,
+    total_epochs: int,
+    s_episode: int,
+    total_episodes: int,
+    replay_buffer: object,
+    minimal_size: int,
+    batch_size: int,
+    return_list: list,
+    ckp_path: str,
+    net_num: int = 2,
 ):
     """异策略, 从经验池抽取, 仅限演员评论员框架
 
@@ -290,7 +297,7 @@ def train_off_policy_agent(
     return return_list
 
 
-def compute_advantage(gamma, lmbda, td_delta):
+def compute_advantage(gamma: float, lmbda: float, td_delta: list):
     td_delta = td_delta.detach().numpy()
     advantage_list = []
     advantage = 0.0
@@ -314,8 +321,8 @@ def show_gym_policy(
     render_mode: str = "human",
     epochs: int = 10,
     steps: int = 500,
-    model_type: str="AC",
-    if_return: bool=False,
+    model_type: str = "AC",
+    if_return: bool = False,
 ):
     """
     `env_name`: 环境名称;\\
