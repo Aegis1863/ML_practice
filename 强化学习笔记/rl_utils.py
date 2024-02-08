@@ -309,9 +309,7 @@ def compute_advantage(gamma: float, lmbda: float, td_delta: torch.Tensor):
     # 对advantage_list进行标准化, 因为优势决定了优化方向
     # 有的优势虽然是正的，但是很小，就应该弱化这种优势，标准化后就会变成负的
     # 当然也可以直接输出advantage_list
-    advantage_list = (advantage_list - advantage_list.mean()) / (
-        advantage_list.std() + 1e-5
-    )
+    advantage_list = (advantage_list - advantage_list.mean()) / (advantage_list.std() + 1e-5)
     return advantage_list
 
 
