@@ -123,7 +123,7 @@ def train_on_policy_agent(
                     "truncated": [],
                 }
                 state = env.reset()[0]
-                done = truncated = False
+                done, truncated = False, False
                 while not (done | truncated):
                     action = agent.take_action(state)
                     next_state, reward, done, truncated, _ = env.step(action)
@@ -219,13 +219,12 @@ def train_off_policy_agent(
             for episode in range(s_episode, total_episodes):
                 episode_return = 0
                 state = env.reset()[0]
-                done = truncated = False
+                done, truncated = False, False
                 while not (done | truncated):
                     action = agent.take_action(state)
                     next_state, reward, done, truncated, _ = env.step(action)
-                    replay_buffer.add(
-                        state, action, reward, next_state, done, truncated
-                    )
+                    next_state = next_state.reshape(-1)
+                    replay_buffer.add(state, action, reward, next_state, done, truncated)
                     state = next_state
                     episode_return += reward
                     if replay_buffer.size() > minimal_size:  # 确保先收集到一定量的数据再采样
@@ -239,7 +238,8 @@ def train_off_policy_agent(
                             "truncated": b_t,
                         }
                         agent.update(transition_dict)
-                return_list.append(episode_return)
+                # assert isinstance(episode_return, float), 'episode_return should be float'
+                return_list.append(float(episode_return))
                 if episode_return > best_score:
                     actor_best_weight = agent.actor.state_dict()
                     if net_num == 3:
