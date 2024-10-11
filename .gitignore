@@ -17,3 +17,4 @@
 /机器学习笔记/my_logs/run_2022_02_10-12_08_10/validation/events.out.tfevents.1644467038.DESKTOP-9HK2K51.15368.7.v2
 /机器学习项目/深度图像网络强化学习/__pycache__/environment.cpython-310.pyc
 *.pyc
+data/
